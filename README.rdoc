@@ -1,0 +1,69 @@
+==WithoutCallbacks
+Temporarily disable ActiveRecord callbacks.
+
+==Usage
+ class MyModel < ActiveRecord::Base
+   before_save :do_something_before_save
+   
+   def after_save
+     raise RuntimeError, "after_save called"
+   end
+   
+   def do_something_before_save
+     raise RuntimeError, "do_something_before_save called"
+   end
+ end
+ 
+ o = MyModel.new
+ MyModel.without_callbacks(:before_save, :after_save) do
+   o.save # no exceptions raised
+ end
+
+==Advanced
+You can disable all callbacks easily.
+ MyModel.without_callbacks(:all) { # do something }
+ # :all is the default, so you don't have to specify it
+ MyModel.without_callbacks { do something }
+
+You can disable all CRUD callbacks easily.
+ MyModel.without_callbacks(:all_crud) { # do something }
+
+You can disable all validation callbacks easily.
+  MyModel.without_callbacks(:all_validation) { # do something }
+
+You can disable callbacks by name.  Here is the complete list:
+ before_create   after_create
+ before_destroy  after_destroy
+ before_save     after_save
+ before_update   after_update
+ 
+ before_validation            after_validation
+ before_validation_on_create  after_validation_on_create
+ before_validation_on_update  after_validation_on_update
+
+You can call without_callbacks on an instance.
+ m = MyModel.new
+ m.without_callbacks { |o| o == m # => true }
+
+Calling without_callbacks on a class yields the class, fyi.
+ MyModel.without_callbacks { |klass| klass == MyModel # => true }
+
+Disabling callbacks on a derived class won't disable them on the superclass.
+ class Base < ActiveRecord::Base
+   def after_save
+     puts "base after save!"
+   end
+ end
+ 
+ class Derived < Base
+   def after_save
+     puts "derived after save!"
+     super
+   end
+ end
+ 
+ b, d = Base.new, Derived.new
+ Derived.without_callbacks(:after_save) do
+   d.save # no output
+   b.save # "base after save!"
+ end
