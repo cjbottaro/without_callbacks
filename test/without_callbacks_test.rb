@@ -140,4 +140,20 @@ class WithoutCallbacksTest < Test::Unit::TestCase
     assert d.set?(:after_save_callback)
   end
   
+  def test_granular
+    r = WithoutCallbacksTestModel.new
+    r.save
+    assert r.set?(:before_save)
+    assert r.set?(:after_save_callback)
+    
+    r.reset
+    r.without_callbacks(:after_save_callback) { |o| o.save }
+    assert_equal true, r.set?(:before_save)
+    assert_equal false, r.set?(:after_save_callback)
+    
+    r.save
+    assert r.set?(:before_save)
+    assert r.set?(:after_save_callback)
+  end
+  
 end

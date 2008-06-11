@@ -8,6 +8,27 @@ module CJBottaro # :nodoc:
     }
     CALLBACK_LIST[:all] = CALLBACK_LIST[:all_crud] + CALLBACK_LIST[:all_validation]
     
+    def self.check_arguments(klass, first_callback, other_callbacks)
+      callbacks_to_skip = [first_callback] + other_callbacks
+      
+      # expand :all, :all_crud, :all_validation to actual callback names
+      callbacks_to_skip = callbacks_to_skip.collect{ |callback| CALLBACK_LIST[callback] || callback.to_s }.flatten.uniq
+      
+      # get a list of all callbacks specified by the class methods
+      # TODO cache all_callbacks as a class_inheritable_attribute
+      all_callbacks = CALLBACK_LIST[:all]
+      klass.class_eval do
+        CALLBACK_LIST[:all].each do |callback_name|
+          callbacks_to_add = read_inheritable_attribute(callback_name.to_sym)
+          all_callbacks += callbacks_to_add.collect{ |callback_sym| callback_sym.to_s } if callbacks_to_add
+        end
+      end
+      
+      invalid_callbacks = (callbacks_to_skip.to_set - all_callbacks.to_set).to_a
+      raise ArgumentError, "You can't skip callbacks that don't exist: " + invalid_callbacks.join(', ') unless invalid_callbacks.blank?
+      callbacks_to_skip
+    end
+    
     def self.backup(klass, callbacks_to_skip) # :nodoc:
       methods_to_skip = {}
       klass.class_eval do
@@ -15,8 +36,10 @@ module CJBottaro # :nodoc:
           methods_to_skip[callback] = { :symbols => nil, :method => nil }
         
           # backup the symbols list
-          methods_to_skip[callback][:symbols] = read_inheritable_attribute(callback.to_sym)
-          write_inheritable_attribute(callback.to_sym, nil)
+          if CALLBACK_LIST[:all].include?(callback)
+            methods_to_skip[callback][:symbols] = read_inheritable_attribute(callback.to_sym)
+            write_inheritable_attribute(callback.to_sym, nil)
+          end
         
           # backup the method
           methods_to_skip[callback][:method] = instance_method(callback.to_sym)
@@ -30,7 +53,7 @@ module CJBottaro # :nodoc:
       klass.class_eval do
         methods_to_skip.each do |callback, symbols_method|
           symbols, method = symbols_method[:symbols], symbols_method[:method]
-          write_inheritable_attribute(callback.to_sym, symbols)
+          write_inheritable_attribute(callback.to_sym, symbols) unless symbols.blank?
           define_method(callback.to_sym, method) unless method.blank?
         end
       end
@@ -45,12 +68,7 @@ module CJBottaro # :nodoc:
       #  end
       def without_callbacks(callback_to_skip = :all, *args, &block)
         raise ArgumentError, "block required" unless block_given?
-        
-        callbacks_to_skip = [callback_to_skip] + args
-        callbacks_to_skip = callbacks_to_skip.collect{ |callback| CALLBACK_LIST[callback] || callback.to_s }.flatten.uniq
-        invalid_callbacks = (callbacks_to_skip.to_set - CALLBACK_LIST[:all].to_set).to_a
-        raise ArgumentError, "You can't skip callbacks that don't exist: " + invalid_callbacks.join(', ') unless invalid_callbacks.blank?
-        
+        callbacks_to_skip = WithoutCallbacks.check_arguments(self, callback_to_skip, args)
         methods_to_skip = WithoutCallbacks.backup(self, callbacks_to_skip)
         
         begin
