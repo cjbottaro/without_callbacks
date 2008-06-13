@@ -1,0 +1,13 @@
+06/13/2008
+----------
+* Rewrote the plugin to work with Rails 2.1 as well as 2.0.  I'm not sure, but I think it will work with 1.2.x.
+* The plugin now accomplishes its goal by manipulating the callback chain instead of undefining methods.  This has a nasty side effect of not working in some cases when inheritance is used. For instance,
+class Base < ActiveRecord::Base
+  before_save :base_before_save
+  ...
+end
+class Derived < Base
+  before_save :derived_before_save
+  ...
+end
+Derived.new.without_callbacks(:before_save) { |o| o.save } # base_before_save will still be called
