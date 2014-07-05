@@ -4,7 +4,7 @@ module CJBottaro # :nodoc:
     
     CALLBACK_LIST = {
       :all_crud => %w[after_create after_destroy after_save after_update before_create before_destroy before_save before_update],
-      :all_validation => %w[after_validation after_validation_on_create after_validation_on_update before_validation before_validation_on_create before_validation_on_update],
+      :all_validation => %w[after_validation after_validation_on_create after_validation_on_update before_validation before_validation_on_create before_validation_on_update validate validate_on_create validate_on_update],
     }
     CALLBACK_LIST[:all] = CALLBACK_LIST[:all_crud] + CALLBACK_LIST[:all_validation]
     
